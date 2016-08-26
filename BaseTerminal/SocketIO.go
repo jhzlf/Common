@@ -174,10 +174,11 @@ func (c *SocketIOClient) Send(send string) bool {
 
 func (c *SocketIOClient) Close() {
 	//	if c.status == STATUS_CONNECTED {
-	c.send_buff.PushBack(&BuffEx{nil, nil})
-	c.status = STATUS_CLOSEING
-	c.cond.Broadcast()
+	//	c.send_buff.PushBack(&BuffEx{nil, nil})
+	//	c.status = STATUS_CLOSEING
+	//	c.cond.Broadcast()
 	//	}
+	c.ss.Close()
 }
 
 //func InitSocketIOServer(port, conn_max, timeout int, base SocketIOBase, server_crt, server_key string) (*SocketIOServer, error) {
