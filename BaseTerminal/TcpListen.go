@@ -31,7 +31,8 @@ func ListenTcp(port int, base BaseTerminal) error {
 			if err != nil {
 				continue
 			}
-			logger.Debugf("%d accept new connect, remote address: %s.", port, conn.RemoteAddr().String())
+			//			logger.Infof("%d accept new connect, remote address: %s.", port, conn.RemoteAddr().String())
+			logger.Info(port, " accept new connect, remote address: ", conn.RemoteAddr().String())
 
 			pClient := NewTcpClient(false)
 			pClient.conn = conn

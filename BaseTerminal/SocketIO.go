@@ -157,14 +157,15 @@ func (c *SocketIOClient) Send(send string) bool {
 		return false
 	}
 	if c.status == STATUS_CONNECTED {
-		//		c.send_buff.PushBack(pSend)
-		c.send_buff.PushBack(&BuffEx{len(send), []byte(send)})
-		//		logger.Debug("push back sendmsg len ", c.send_buff.Len())
-		//		if c.send_buff.Len() > MAX_SEND_BUFF {
-		//			logger.Warn("sendmsg buf full", c.send_buff.Len())
-		//			c.send_buff.PopFront()
-		//		}
-		c.cond.Broadcast()
+		//		c.send_buff.PushBack(&BuffEx{len(send), []byte(send)})
+		//		c.cond.Broadcast()
+		go func() {
+			err := c.ss.Emit("msg", send)
+			if err != nil {
+				logger.Warn("write buffer error.", c.ss, "	", err)
+				c.ss.Close()
+			}
+		}()
 		return true
 	} else {
 		return false
@@ -203,20 +204,22 @@ func InitSocketIOServer(listen []SocketIOListen, conn_max int, base SocketIOBase
 		pClient.ss = so
 		pClient.base = base
 		pClient.server = s
-		pClient.asyncSend()
+		//		pClient.asyncSend()
 		pClient.status = STATUS_CONNECTED
 		pClient.f = base.OnConnect(pClient)
 
 		pClient.ss.On("disconnection", func() {
-			if pClient.status == STATUS_CONNECTED {
-				pClient.send_buff.PushBack(&BuffEx{nil, nil})
-				pClient.status = STATUS_NULL
-				pClient.cond.Broadcast()
-				pClient.base.OnClose(pClient.f)
-			} else {
-				pClient.status = STATUS_NULL
-				pClient.base.OnClose(pClient.f)
-			}
+			//			if pClient.status == STATUS_CONNECTED {
+			//				pClient.send_buff.PushBack(&BuffEx{nil, nil})
+			//				pClient.status = STATUS_NULL
+			//				pClient.cond.Broadcast()
+			//				pClient.base.OnClose(pClient.f)
+			//			} else {
+			//				pClient.status = STATUS_NULL
+			//				pClient.base.OnClose(pClient.f)
+			//			}
+			pClient.status = STATUS_NULL
+			pClient.base.OnClose(pClient.f)
 		})
 
 		pClient.ss.On("msg", func(data string) string {

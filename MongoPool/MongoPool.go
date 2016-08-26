@@ -3,35 +3,42 @@ package MongoPool
 import (
 	"Common/logger"
 	"errors"
-	"sync"
+	//	"sync"
+	"strings"
 	"time"
 
 	"gopkg.in/mgo.v2"
 	//	"gopkg.in/mgo.v2/bson"
 )
 
-type MONGO_MAP struct {
-	m_url string
+type MongoPool struct {
+	//	m_url string
 	//	lock       sync.Mutex
 	//	conn_type  int
-	mgoSession *mgo.Session
+	//	mgoSession *mgo.Session
+
 }
 
 var (
-	b     bool
-	m_map map[string]*MONGO_MAP
+	//	b     bool
+	m_map = make(map[interface{}]*mgo.Session)
 )
 
-func once() {
-	if !b {
-		m_map = make(map[string]*MONGO_MAP)
-		b = true
-	}
+type MongoIndex struct {
+	Key        []string
+	Unique     bool
+	DropDups   bool
+	Background bool // See notes.
+	Sparse     bool
+	Name       string
 }
 
-func Init(name, url string) {
-	var one sync.Once
-	one.Do(once)
+func (m *MongoPool) AddDb(name interface{}, url string) {
+	//	var one sync.Once
+	//	one.Do(once)
+	if strings.Count(url, ":") == 0 {
+		url += ":27017"
+	}
 	logger.Info("Init MongoPool add:", url)
 	var p *mgo.Session
 	var err error
@@ -46,12 +53,12 @@ func Init(name, url string) {
 		}
 	}
 
-	v := &MONGO_MAP{url, p}
-	m_map[name] = v
+	//	v := &MONGO_MAP{url, p}
+	m_map[name] = p
 	//	m_map["123"] = v
 }
 
-func getSession(name string) *mgo.Session {
+func getSession(name interface{}) *mgo.Session {
 	v, ok := m_map[name]
 	if !ok {
 		logger.Error("get session error,", name)
@@ -69,10 +76,10 @@ func getSession(name string) *mgo.Session {
 	//		}
 	//	}
 
-	return v.mgoSession.Clone()
+	return v.Clone()
 }
 
-func witchCollection(name, db, collection string, s func(*mgo.Collection) error) error {
+func witchCollection(name interface{}, db, collection string, s func(*mgo.Collection) error) error {
 	session := getSession(name)
 	if session == nil {
 		logger.Error("mongo session get error")
@@ -83,7 +90,7 @@ func witchCollection(name, db, collection string, s func(*mgo.Collection) error)
 	return s(c)
 }
 
-func AddOne(name, db, collection string, p interface{}) error {
+func (m *MongoPool) AddOne(name interface{}, db, collection string, p interface{}) error {
 	// p.Id = bson.NewObjectId()
 	query := func(c *mgo.Collection) error {
 		return c.Insert(p)
@@ -91,16 +98,44 @@ func AddOne(name, db, collection string, p interface{}) error {
 	return witchCollection(name, db, collection, query)
 }
 
-func FindOne(name, db, collection string, i *map[string]interface{}, o interface{}) error {
+func (m *MongoPool) FindOne(name interface{}, db, collection string, i *map[string]interface{}, sort string, o interface{}) error {
 	query := func(c *mgo.Collection) error {
-		return c.Find(i).One(o)
+		if sort == string("") {
+			if i == nil {
+				return c.Find(nil).One(o)
+			} else {
+				return c.Find(i).One(o)
+			}
+		} else {
+			if i == nil {
+				return c.Find(nil).Sort(sort).One(o)
+			} else {
+				return c.Find(i).Sort(sort).One(o)
+			}
+		}
 	}
 	return witchCollection(name, db, collection, query)
 }
 
-func Del(name, db, collection string, i *map[string]interface{}) error {
+func (m *MongoPool) Del(name interface{}, db, collection string, i *map[string]interface{}) error {
 	query := func(c *mgo.Collection) error {
 		return c.Remove(i)
+	}
+	return witchCollection(name, db, collection, query)
+}
+
+func (m *MongoPool) EnsureIndex(name interface{}, db, collection string, index MongoIndex) error {
+	mi := mgo.Index{
+		Key:        index.Key,
+		Unique:     index.Unique,
+		DropDups:   index.DropDups,
+		Background: index.Background,
+		Sparse:     index.Sparse,
+		Name:       index.Name,
+	}
+
+	query := func(c *mgo.Collection) error {
+		return c.EnsureIndex(mi)
 	}
 	return witchCollection(name, db, collection, query)
 }
