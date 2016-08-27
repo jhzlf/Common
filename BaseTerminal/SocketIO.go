@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"Common/go-socket.io"
@@ -27,9 +28,10 @@ type SocketIOListen struct {
 
 type SocketIOClient struct {
 	CBase
-	base   SocketIOBase
-	ss     socketio.Socket
-	server *SocketIOServer
+	base    SocketIOBase
+	ss      socketio.Socket
+	server  *SocketIOServer
+	sendNum int32
 }
 
 type SocketIOServer struct {
@@ -159,8 +161,10 @@ func (c *SocketIOClient) Send(send string) bool {
 	if c.status == STATUS_CONNECTED {
 		//		c.send_buff.PushBack(&BuffEx{len(send), []byte(send)})
 		//		c.cond.Broadcast()
+		atomic.AddInt32(&c.sendNum, 1)
 		go func() {
 			err := c.ss.Emit("msg", send)
+			atomic.AddInt32(&c.sendNum, -1)
 			if err != nil {
 				logger.Warn("write buffer error.", c.ss, "	", err)
 				c.ss.Close()
@@ -178,7 +182,18 @@ func (c *SocketIOClient) Close() {
 	//	c.status = STATUS_CLOSEING
 	//	c.cond.Broadcast()
 	//	}
-	c.ss.Close()
+	go func() {
+		i := 0
+		for {
+			v := atomic.LoadInt32(&c.sendNum)
+			if v == 0 || i == 5 {
+				c.ss.Close()
+			} else {
+				time.Sleep(time.Second)
+				i++
+			}
+		}
+	}()
 }
 
 //func InitSocketIOServer(port, conn_max, timeout int, base SocketIOBase, server_crt, server_key string) (*SocketIOServer, error) {
