@@ -182,6 +182,7 @@ func (c *SocketIOClient) Close() {
 	//	c.status = STATUS_CLOSEING
 	//	c.cond.Broadcast()
 	//	}
+	c.status = STATUS_CLOSEING
 	go func() {
 		i := 0
 		for {
@@ -234,8 +235,10 @@ func InitSocketIOServer(listen []SocketIOListen, conn_max int, base SocketIOBase
 			//				pClient.status = STATUS_NULL
 			//				pClient.base.OnClose(pClient.f)
 			//			}
-			pClient.status = STATUS_NULL
-			pClient.base.OnClose(pClient.f)
+			if pClient.status != STATUS_NULL {
+				pClient.base.OnClose(pClient.f)
+				pClient.status = STATUS_NULL
+			}
 		})
 
 		pClient.ss.On("msg", func(data string) string {
