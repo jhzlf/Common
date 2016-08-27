@@ -189,6 +189,7 @@ func (c *SocketIOClient) Close() {
 			v := atomic.LoadInt32(&c.sendNum)
 			if v == 0 || i == 5 {
 				c.ss.Close()
+				break
 			} else {
 				time.Sleep(time.Second)
 				i++
