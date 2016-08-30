@@ -2,11 +2,14 @@ package BaseTerminal
 
 import (
 	"Common/logger"
-	"Common/myList"
+	//	"Common/myList"
+	"errors"
 	"fmt"
 	"io"
 	"net"
-	"sync"
+	"strconv"
+	//	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -17,11 +20,12 @@ const (
 )
 
 type CBase struct {
-	send_buff *myList.MyList
-	cond      *sync.Cond
-	linkID    uint64
-	status    int
-	f         interface{}
+	//	send_buff *myList.MyList
+	//	cond      *sync.Cond
+	sendNum int32
+	linkID  uint64
+	status  int
+	f       interface{}
 }
 
 type TcpClient struct {
@@ -29,17 +33,18 @@ type TcpClient struct {
 	reconnect bool
 	base      BaseTerminal
 	conn      *net.TCPConn
+	room      *broadcast
 }
 
 func NewTcpClient(b bool) *TcpClient {
-	locker := new(sync.Mutex)
+	//	locker := new(sync.Mutex)
 	ID = ID + 1
 	return &TcpClient{
 		CBase: CBase{
-			send_buff: myList.NewList("sendbuf"),
-			cond:      sync.NewCond(locker),
-			linkID:    ID,
-			status:    STATUS_NULL,
+			//			send_buff: myList.NewList("sendbuf"),
+			//			cond:      sync.NewCond(locker),
+			linkID: ID,
+			status: STATUS_NULL,
 		},
 		reconnect: b,
 	}
@@ -82,9 +87,9 @@ func (c *TcpClient) ConnectTcp(host string, port int, base BaseTerminal) error {
 			}
 			conn.SetKeepAlive(true)
 			c.conn = conn
-			ch := make(chan int)
-			c.asyncSend(ch)
-			<-ch
+			//			ch := make(chan int)
+			//			c.asyncSend(ch)
+			//			<-ch
 			c.status = STATUS_CONNECTED
 			base.OnConnect(c)
 			c.handleTcpClient()
@@ -100,17 +105,12 @@ func (c *TcpClient) ConnectTcp(host string, port int, base BaseTerminal) error {
 func (c *TcpClient) notifyClose() {
 	//		logger.Debug("notifyClose Status:", c.status, " Sid:", c.Sid())
 	if c.status == STATUS_CONNECTED {
-		c.send_buff.PushBack(&BuffEx{nil, nil})
-		c.status = STATUS_CLOSEING
-		c.cond.Broadcast()
-	} else if c.status == STATUS_CLOSEING {
-		//		c.send_buff.Clean()
-		c.status = STATUS_NULL
 		c.conn.Close()
-		c.base.OnClose(c.f)
-	} else {
-
 	}
+	if c.status != STATUS_NULL {
+		c.base.OnClose(c.f)
+	}
+	c.status = STATUS_NULL
 	//	if c.status != STATUS_NULL {
 	//		c.send_buff.Clean()
 	//		c.status = STATUS_NULL
@@ -119,41 +119,41 @@ func (c *TcpClient) notifyClose() {
 	//	}
 }
 
-func (c *TcpClient) asyncSend(ch chan int) {
-	go func() {
-		defer func() {
-			c.notifyClose()
-		}()
+//func (c *TcpClient) asyncSend(ch chan int) {
+//	go func() {
+//		defer func() {
+//			c.notifyClose()
+//		}()
 
-		ch <- 1
-		for {
-			c.cond.L.Lock()
-			c.cond.Wait()
-			c.cond.L.Unlock()
+//		ch <- 1
+//		for {
+//			c.cond.L.Lock()
+//			c.cond.Wait()
+//			c.cond.L.Unlock()
 
-			for {
-				p := c.send_buff.PopFront()
-				if p == nil {
-					break
-				}
-				msg, ok := p.(*BuffEx)
-				if !ok {
-					logger.Error("convert msg error")
-					continue
-				}
-				if msg.Extra == nil {
-					return
-				} else {
-					_, err := c.conn.Write(msg.Buf)
-					if err != nil {
-						logger.Warnf("%s write buffer error.", c.conn.RemoteAddr().String(), err)
-						return
-					}
-				}
-			}
-		}
-	}()
-}
+//			for {
+//				p := c.send_buff.PopFront()
+//				if p == nil {
+//					break
+//				}
+//				msg, ok := p.(*BuffEx)
+//				if !ok {
+//					logger.Error("convert msg error")
+//					continue
+//				}
+//				if msg.Extra == nil {
+//					return
+//				} else {
+//					_, err := c.conn.Write(msg.Buf)
+//					if err != nil {
+//						logger.Warnf("%s write buffer error.", c.conn.RemoteAddr().String(), err)
+//						return
+//					}
+//				}
+//			}
+//		}
+//	}()
+//}
 
 func (c *TcpClient) handleTcpClient() {
 	defer func() {
@@ -185,10 +185,25 @@ func (c *TcpClient) handleTcpClient() {
 	}
 }
 
-func (c *TcpClient) Send(pData []byte) bool {
+func (c *TcpClient) Send(pData string) bool {
+	return c.SendBin([]byte(pData))
+}
+
+func (c *TcpClient) SendBin(pData []byte) bool {
+	if len(pData) == 0 {
+		return false
+	}
 	if c.status == STATUS_CONNECTED {
-		c.send_buff.PushBack(&BuffEx{len(pData), pData})
-		c.cond.Broadcast()
+		atomic.AddInt32(&c.sendNum, 1)
+		go func() {
+			_, err := c.conn.Write(pData)
+			atomic.AddInt32(&c.sendNum, -1)
+			if err != nil {
+				logger.Warnf("%s write buffer error.", c.conn.RemoteAddr().String(), err)
+				c.conn.Close()
+				c.status = STATUS_CLOSEING
+			}
+		}()
 		return true
 	} else {
 		return false
@@ -196,8 +211,57 @@ func (c *TcpClient) Send(pData []byte) bool {
 }
 
 func (c *TcpClient) Close() {
-	c.send_buff.PushBack(&BuffEx{nil, nil})
+	//	c.send_buff.PushBack(&BuffEx{nil, nil})
+	//	c.status = STATUS_CLOSEING
+	//	c.reconnect = false
+	//	c.cond.Broadcast()
 	c.status = STATUS_CLOSEING
-	c.reconnect = false
-	c.cond.Broadcast()
+	go func() {
+		i := 0
+		for {
+			v := atomic.LoadInt32(&c.sendNum)
+			if v == 0 || i == 5 {
+				c.conn.Close()
+				break
+			} else {
+				time.Sleep(time.Second)
+				i++
+			}
+		}
+	}()
+}
+
+func (c *TcpClient) Join(room string) {
+	if c.room == nil {
+		return
+	}
+	c.room.Join(room, strconv.FormatUint(c.linkID, 10), c)
+}
+
+func (c *TcpClient) Leave(room string) {
+	if c.room == nil {
+		return
+	}
+	c.room.Leave(room, strconv.FormatUint(c.linkID, 10))
+}
+
+func (c *TcpClient) BroadcastTo(room string, buf string) error {
+	if c.room == nil {
+		return errors.New("client no room")
+	}
+	return c.room.Send(strconv.FormatUint(c.linkID, 10), room, buf)
+}
+
+func (c *TcpClient) RoomMemCount(room string) int {
+	if c.room == nil {
+		return 0
+	}
+	return c.room.Count(room)
+}
+
+func (c *TcpClient) LeaveAll() {
+	if c.room == nil {
+		return
+	}
+	c.room.LeaveAll(strconv.FormatUint(c.linkID, 10))
 }

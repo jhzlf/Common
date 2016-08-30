@@ -3,11 +3,11 @@ package BaseTerminal
 import (
 	"Common/HttpServer"
 	"Common/logger"
-	"Common/myList"
+	//	"Common/myList"
 	"errors"
 	"net/http"
 	"strings"
-	"sync"
+	//	"sync"
 	"sync/atomic"
 	"time"
 
@@ -28,10 +28,9 @@ type SocketIOListen struct {
 
 type SocketIOClient struct {
 	CBase
-	base    SocketIOBase
-	ss      socketio.Socket
-	server  *SocketIOServer
-	sendNum int32
+	base   SocketIOBase
+	ss     socketio.Socket
+	server *SocketIOServer
 }
 
 type SocketIOServer struct {
@@ -45,14 +44,14 @@ func (s *SocketIOServer) SocketIOBroadcastTo(room, buf string) {
 }
 
 func newSocketIOClient() *SocketIOClient {
-	locker := new(sync.Mutex)
+	//	locker := new(sync.Mutex)
 	ID = ID + 1
 	return &SocketIOClient{
 		CBase: CBase{
-			send_buff: myList.NewList("sendbuf"),
-			cond:      sync.NewCond(locker),
-			linkID:    ID,
-			status:    STATUS_NULL,
+			//			send_buff: myList.NewList("sendbuf"),
+			//			cond:      sync.NewCond(locker),
+			linkID: ID,
+			status: STATUS_NULL,
 		},
 	}
 }
@@ -84,51 +83,51 @@ func (c *SocketIOClient) Sid() string {
 	return c.ss.Id()
 }
 
-func (c *SocketIOClient) asyncSend() {
-	go func() {
-		//		defer func() {
-		//			c.notifyClose()
-		//		}()
+//func (c *SocketIOClient) asyncSend() {
+//	go func() {
+//		//		defer func() {
+//		//			c.notifyClose()
+//		//		}()
 
-		for {
-			c.cond.L.Lock()
-			c.cond.Wait()
-			c.cond.L.Unlock()
+//		for {
+//			c.cond.L.Lock()
+//			c.cond.Wait()
+//			c.cond.L.Unlock()
 
-			for {
-				p := c.send_buff.PopFront()
-				if p == nil {
-					break
-				}
-				msg, ok := p.(*BuffEx)
-				if !ok {
-					logger.Error("convert msg error")
-					continue
-				}
-				if msg.Extra == nil {
-					if c.status == STATUS_CLOSEING {
-						c.ss.Close()
-					}
-					return
-				} else {
-					i := time.Now().UnixNano()
-					err := c.ss.Emit("msg", string(msg.Buf))
-					if err != nil {
-						logger.Warn("write buffer error.", c.ss, "	", err, "	", time.Now().UnixNano()-i)
-						c.status = STATUS_CLOSEING
-						c.ss.Close()
-						return
-					}
-					//					timeNow := time.Now().UnixNano()
-					//					if timeNow-i < SEND_TIME_INTERVAL*1000*1000 {
-					//						sleepTime := i + 800*1000*1000 - timeNow
-					//						time.Sleep(time.Nanosecond * time.Duration(sleepTime))
-					//					}
-				}
-			}
-		}
-	}()
-}
+//			for {
+//				p := c.send_buff.PopFront()
+//				if p == nil {
+//					break
+//				}
+//				msg, ok := p.(*BuffEx)
+//				if !ok {
+//					logger.Error("convert msg error")
+//					continue
+//				}
+//				if msg.Extra == nil {
+//					if c.status == STATUS_CLOSEING {
+//						c.ss.Close()
+//					}
+//					return
+//				} else {
+//					i := time.Now().UnixNano()
+//					err := c.ss.Emit("msg", string(msg.Buf))
+//					if err != nil {
+//						logger.Warn("write buffer error.", c.ss, "	", err, "	", time.Now().UnixNano()-i)
+//						c.status = STATUS_CLOSEING
+//						c.ss.Close()
+//						return
+//					}
+//					//					timeNow := time.Now().UnixNano()
+//					//					if timeNow-i < SEND_TIME_INTERVAL*1000*1000 {
+//					//						sleepTime := i + 800*1000*1000 - timeNow
+//					//						time.Sleep(time.Nanosecond * time.Duration(sleepTime))
+//					//					}
+//				}
+//			}
+//		}
+//	}()
+//}
 
 func (c *SocketIOClient) Join(room string) {
 	//	c.ss.Join(room)

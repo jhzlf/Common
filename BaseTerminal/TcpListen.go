@@ -26,6 +26,7 @@ func ListenTcp(port int, base BaseTerminal) error {
 		}()
 
 		logger.Info("listen address: ", listener.Addr().String())
+		room := newBroadcast()
 		for {
 			conn, err := listener.AcceptTCP()
 			if err != nil {
@@ -37,9 +38,10 @@ func ListenTcp(port int, base BaseTerminal) error {
 			pClient := NewTcpClient(false)
 			pClient.conn = conn
 			pClient.base = base
-			ch := make(chan int)
-			pClient.asyncSend(ch)
-			<-ch
+			pClient.room = room
+			//			ch := make(chan int)
+			//			pClient.asyncSend(ch)
+			//			<-ch
 			pClient.status = STATUS_CONNECTED
 			pClient.f = base.OnConnect(pClient)
 			go pClient.handleTcpClient()
