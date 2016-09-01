@@ -1,31 +1,35 @@
 package Manager
 
-/*
-const char* build_time(void)
-{
-static const char* psz_build_time = "["__DATE__ " " __TIME__ "]";
-    return psz_build_time;
-}
-*/
-import "C"
+///*
+//const char* build_time(void)
+//{
+//static const char* psz_build_time = "["__DATE__ " " __TIME__ "]";
+//    return psz_build_time;
+//}
+//*/
+//import "C"
 
 import (
 	"Common/HttpServer"
 	"Common/logger"
+	"fmt"
 	"io"
 	"net/http"
 )
 
 var (
-	http_manage *HttpServer.HttpServer
+	http_manage  *HttpServer.HttpServer
+	buildtime    = ""
+	buildversion = ""
 )
 
-func Init(port int) {
+func Create(port int, build, version string) {
 	manage_port := port
 	if manage_port == 0 {
 		manage_port = 24438
 	}
-
+	buildtime = build
+	buildversion = version
 	http_manage = &HttpServer.HttpServer{Name: "manage", Handler: http.NewServeMux()}
 
 	logger.Info("manage listen at localhost:", manage_port)
@@ -75,6 +79,8 @@ func setLogLevel(w http.ResponseWriter, r *http.Request) {
 }
 
 func getBuild(w http.ResponseWriter, r *http.Request) {
-	buildTime := C.GoString(C.build_time())
-	io.WriteString(w, buildTime)
+	//	buildTime := C.GoString(C.build_time())
+	s := fmt.Sprintf("UTC Build Time:%s\n", buildtime)
+	s += fmt.Sprintf("Git Commot Hash:%s\n", buildversion)
+	io.WriteString(w, s)
 }
