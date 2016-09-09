@@ -23,6 +23,20 @@ var (
 	buildversion = ""
 )
 
+func Init(port int) {
+	manage_port := port
+	if manage_port == 0 {
+		manage_port = 24438
+	}
+	http_manage = &HttpServer.HttpServer{Name: "manage", Handler: http.NewServeMux()}
+
+	logger.Info("manage listen at localhost:", manage_port)
+
+	http_manage.Handler.HandleFunc("/SetLogLevel", setLogLevel)
+	http_manage.Handler.HandleFunc("/Build", getBuild)
+	http_manage.ListenAndServe(manage_port, 360)
+}
+
 func Create(port int, build, version string) {
 	manage_port := port
 	if manage_port == 0 {

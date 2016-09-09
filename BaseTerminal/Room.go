@@ -1,10 +1,10 @@
 package BaseTerminal
 
-import (
-	//	"Common/logger"
-	//	"runtime/debug"
-	"sync"
-)
+import
+//	"Common/logger"
+//	"runtime/debug"
+
+"sync"
 
 type RoomClient interface {
 	Send(send string) bool
@@ -54,6 +54,26 @@ func (b *broadcast) Leave(room string, id string) error {
 	return nil
 }
 
+func (b *broadcast) Check(room string, id string) bool {
+	b._lock.Lock()
+	defer b._lock.Unlock()
+
+	sockets, ok := b._map[room]
+	if !ok {
+		return false
+	}
+	if _, ok := sockets[id]; ok {
+		return true
+	}
+	return false
+}
+
+func (b *broadcast) Close(room string) {
+	b._lock.Lock()
+	defer b._lock.Unlock()
+	delete(b._map, room)
+}
+
 func (b *broadcast) LeaveAll(id string) error {
 	b._lock.Lock()
 	defer b._lock.Unlock()
@@ -74,14 +94,14 @@ func (b *broadcast) Send(id, room, buf string) error {
 	defer b._lock.Unlock()
 
 	sockets := b._map[room]
-	//	logger.Debug(">>>>>>>>>> ", len(sockets))
+	// logger.Debug(">>>>>>>>>> ", len(sockets))
 	//	debug.PrintStack()
 	for k, s := range sockets {
 		if k == id {
-			//			logger.Debug(">>>>>>>>>> 11111111111", k, " ", id)
+			// logger.Debug(">>>>>>>>>> 11111111111", k, " ", id)
 			continue
 		}
-		//		logger.Debug(">>>>>>>>>> 222222222222", k, " ", id)
+		// logger.Debug(">>>>>>>>>> 222222222222", k, " ", id)
 		if s.Send(buf) == false {
 			delete(sockets, k)
 		}

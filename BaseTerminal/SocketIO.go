@@ -40,7 +40,12 @@ type SocketIOServer struct {
 
 func (s *SocketIOServer) SocketIOBroadcastTo(room, buf string) {
 	//	s.BroadcastTo(room, "msg", args...)
+	// logger.Debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>", room, " ", buf)
 	s.room.Send("", room, buf)
+}
+
+func (s *SocketIOServer) SocketIOCloseRoom(room string) {
+	s.room.Close(room)
 }
 
 func newSocketIOClient() *SocketIOClient {
@@ -137,6 +142,10 @@ func (c *SocketIOClient) Join(room string) {
 func (c *SocketIOClient) Leave(room string) {
 	//	c.ss.Leave(room)
 	c.server.room.Leave(room, c.Sid())
+}
+
+func (c *SocketIOClient) Check(room string) bool {
+	return c.server.room.Check(room, c.Sid())
 }
 
 func (c *SocketIOClient) BroadcastTo(room string, buf string) error {

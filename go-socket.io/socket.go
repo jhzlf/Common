@@ -3,7 +3,6 @@ package socketio
 import (
 	"Common/go-engine.io"
 	//"fmt"
-	//"log"
 	"net/http"
 	//"runtime/debug"
 )
@@ -179,7 +178,7 @@ func (s *socket) loop() error {
 					NSP:  s.namespace,
 					Data: ret,
 				}
-				//log.Println(">>>>>>>>>>>>>>>>>>>>> go-socket_io.socket.loop:", p)
+				// fmt.Println(">>>>>>>>>>>>>>>>>>>>> go-socket_io.socket.loop:", p)
 				encoder := newEncoder(s.conn)
 				if err := encoder.Encode(p); err != nil {
 					//fmt.Println(">>>>>>>>>>>>>>>>>>>decoder 183 err:", err)
