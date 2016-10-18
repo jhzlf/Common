@@ -1,8 +1,10 @@
 package BaseTerminal
 
 import (
+	"Common"
 	"Common/HttpServer"
 	"Common/logger"
+	"encoding/base64"
 	//	"Common/myList"
 	"errors"
 	"net/http"
@@ -31,6 +33,7 @@ type SocketIOClient struct {
 	base   SocketIOBase
 	ss     socketio.Socket
 	server *SocketIOServer
+	enKey  []byte
 }
 
 type SocketIOServer struct {
@@ -42,6 +45,10 @@ func (s *SocketIOServer) SocketIOBroadcastTo(room, buf string) {
 	//	s.BroadcastTo(room, "msg", args...)
 	// logger.Debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>", room, " ", buf)
 	s.room.Send("", room, buf)
+}
+
+func (s *SocketIOServer) SocketIOBroadcastToEncrypt(room, buf string) {
+	s.room.SendEncrypt("", room, buf)
 }
 
 func (s *SocketIOServer) SocketIOCloseRoom(room string) {
@@ -153,6 +160,10 @@ func (c *SocketIOClient) BroadcastTo(room string, buf string) error {
 	return c.server.room.Send(c.Sid(), room, buf)
 }
 
+func (c *SocketIOClient) BroadcastToEncrypt(room string, buf string) error {
+	return c.server.room.SendEncrypt(c.Sid(), room, buf)
+}
+
 func (c *SocketIOClient) RoomMemCount(room string) int {
 	//	return c.ss.RoomMemCount(room)
 	return c.server.room.Count(room)
@@ -171,6 +182,7 @@ func (c *SocketIOClient) Send(send string) bool {
 		//		c.cond.Broadcast()
 		atomic.AddInt32(&c.sendNum, 1)
 		go func() {
+			// logger.Debug(">>>>>>>>>>>>>>>>>>>>>> Emit ", c.Sid(), " ", send)
 			err := c.ss.Emit("msg", send)
 			atomic.AddInt32(&c.sendNum, -1)
 			if err != nil {
@@ -295,4 +307,48 @@ func (c *SocketIOClient) GetIP() string {
 		}
 		return ""
 	}
+}
+
+func (c *SocketIOClient) SetEnKey(key []byte) {
+	c.enKey = key
+}
+
+func (c *SocketIOClient) AddSaltEnKey(salt []byte) {
+	if len(salt) < 24 {
+		logger.Warn("salt error")
+	}
+	for i := 0; i < 24; i++ {
+		c.enKey[i] = c.enKey[i] ^ salt[i]
+	}
+}
+
+func (c *SocketIOClient) SendEncrypt(send string) bool {
+	if len(send) == 0 {
+		return false
+	}
+	if len(c.enKey) > 0 {
+		return c.Send(base64.StdEncoding.EncodeToString(Common.Encrypt(c.enKey, []byte(send))))
+	}
+	return c.Send(send)
+}
+
+func (c *SocketIOClient) GetDecryptMsg(msg string) string {
+	logger.Debug("GetDecryptMsg ", c.enKey, "	", msg)
+	if len(c.enKey) > 0 {
+		b, err := base64.StdEncoding.DecodeString(msg)
+		if err != nil {
+			logger.Warn("base decrypt error ", err)
+			return msg
+		}
+		return string(Common.Decrypt(c.enKey, b))
+	}
+	return msg
+}
+
+func (c *SocketIOClient) GetEncryptMsg(msg string) string {
+	logger.Debug("GetEncryptMsg ", c.enKey, "	", msg)
+	if len(c.enKey) > 0 {
+		return base64.StdEncoding.EncodeToString(Common.Encrypt(c.enKey, []byte(msg)))
+	}
+	return msg
 }

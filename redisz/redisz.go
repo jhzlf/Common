@@ -1,6 +1,7 @@
 package redisz
 
 import (
+	"strings"
 	"time"
 
 	"github.com/futurez/litego/logger"
@@ -20,6 +21,9 @@ type RedisPool struct {
 func NewRedisPool(name, server, password string, maxIdle int) *RedisPool {
 	if maxIdle < 1 {
 		maxIdle = 1
+	}
+	if strings.Count(server, ":") == 0 {
+		server += ":6379"
 	}
 
 	pool := &redis.Pool{
@@ -57,6 +61,9 @@ func NewRedisPool(name, server, password string, maxIdle int) *RedisPool {
 func NewRedisSelectPool(name, server, password string, maxIdle int, id int) *RedisPool {
 	if maxIdle < 1 {
 		maxIdle = 1
+	}
+	if strings.Count(server, ":") == 0 {
+		server += ":6379"
 	}
 
 	pool := &redis.Pool{

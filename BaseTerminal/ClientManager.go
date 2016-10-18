@@ -1,9 +1,9 @@
 package BaseTerminal
 
-import (
-	//	"Common/logger"
-	"sync"
-)
+import
+//	"Common/logger"
+
+"sync"
 
 type ClientManager struct {
 	m_client_map  map[interface{}]interface{}

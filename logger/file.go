@@ -20,7 +20,8 @@ func (this *FileLogAdapter) newLoggerInstance() LoggerInterface {
 			LogFlag:  (log.Ldate | log.Ltime | log.Lmicroseconds),
 			FileName: "log",
 			MaxSize:  1 << 30, //1024MB(1G)
-			MaxDays:  7},
+			MaxDays:  7,
+		},
 	}
 }
 
@@ -39,6 +40,7 @@ type FileLogWriter struct {
 	curFileNum int
 	curSize    int
 	config     FileLogConfig
+	oneFile    bool
 }
 
 // Init file logger with json config.
@@ -63,6 +65,14 @@ func (this *FileLogWriter) Init(jsonconfig string) error {
 
 func (fw *FileLogWriter) SetLogLevel(loglevel int) {
 	fw.config.LogLevel = loglevel
+}
+
+func (fw *FileLogWriter) SetSplit(b bool) {
+	if b == true {
+		fw.oneFile = false
+		return
+	}
+	fw.oneFile = true
 }
 
 func (fw *FileLogWriter) Write(b []byte) (int, error) {
@@ -100,7 +110,9 @@ func (fw *FileLogWriter) WriteMsg(msg string, level int) error {
 		return nil
 	}
 	fw.lg.Println(msg)
-	fw.docheck()
+	if fw.oneFile == false {
+		fw.docheck()
+	}
 	return nil
 }
 

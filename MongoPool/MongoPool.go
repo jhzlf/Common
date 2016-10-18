@@ -3,12 +3,12 @@ package MongoPool
 import (
 	"Common/logger"
 	"errors"
-	//	"sync"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/mgo.v2"
-	//	"gopkg.in/mgo.v2/bson"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type MongoPool struct {
@@ -19,9 +19,15 @@ type MongoPool struct {
 
 }
 
+type QueryCondition struct {
+	Name      string
+	Condition interface{}
+	Symbol    string
+}
+
 var (
-	//	b     bool
-	m_map = make(map[interface{}]*mgo.Session)
+	m_lock sync.Mutex
+	m_map  = make(map[interface{}]*mgo.Session)
 )
 
 type MongoIndex struct {
@@ -52,13 +58,14 @@ func (m *MongoPool) AddDb(name interface{}, url string) {
 			break
 		}
 	}
-
-	//	v := &MONGO_MAP{url, p}
+	m_lock.Lock()
+	defer m_lock.Unlock()
 	m_map[name] = p
-	//	m_map["123"] = v
 }
 
 func getSession(name interface{}) *mgo.Session {
+	m_lock.Lock()
+	defer m_lock.Unlock()
 	v, ok := m_map[name]
 	if !ok {
 		logger.Error("get session error,", name)
@@ -117,9 +124,17 @@ func (m *MongoPool) FindOne(name interface{}, db, collection string, i *map[stri
 	return witchCollection(name, db, collection, query)
 }
 
-func (m *MongoPool) Del(name interface{}, db, collection string, i *map[string]interface{}) error {
+func (m *MongoPool) DelOne(name interface{}, db, collection string, i map[string]interface{}) error {
 	query := func(c *mgo.Collection) error {
 		return c.Remove(i)
+	}
+	return witchCollection(name, db, collection, query)
+}
+
+func (m *MongoPool) DelAll(name interface{}, db, collection string, i map[string]interface{}) error {
+	query := func(c *mgo.Collection) error {
+		_, err := c.RemoveAll(i)
+		return err
 	}
 	return witchCollection(name, db, collection, query)
 }
@@ -138,4 +153,74 @@ func (m *MongoPool) EnsureIndex(name interface{}, db, collection string, index M
 		return c.EnsureIndex(mi)
 	}
 	return witchCollection(name, db, collection, query)
+}
+
+func (m *MongoPool) Find(name interface{}, db, collection string, i map[string]interface{}, sort string, o interface{}) error {
+	query := func(c *mgo.Collection) error {
+		if sort == string("") {
+			if i == nil {
+				return c.Find(nil).All(o)
+			} else {
+				return c.Find(i).All(o)
+			}
+		} else {
+			if i == nil {
+				return c.Find(nil).Sort(sort).All(o)
+			} else {
+				return c.Find(i).Sort(sort).All(o)
+			}
+		}
+	}
+	return witchCollection(name, db, collection, query)
+}
+
+func (m *MongoPool) FindLimit(name interface{}, db, collection string, i map[string]interface{}, sort string, limit int, o interface{}) error {
+	query := func(c *mgo.Collection) error {
+		if sort == string("") {
+			if i == nil {
+				return c.Find(nil).Limit(limit).All(o)
+			} else {
+				return c.Find(i).Limit(limit).All(o)
+			}
+		} else {
+			if i == nil {
+				return c.Find(nil).Sort(sort).Limit(limit).All(o)
+			} else {
+				return c.Find(i).Sort(sort).Limit(limit).All(o)
+			}
+		}
+	}
+	return witchCollection(name, db, collection, query)
+
+}
+
+func (m *MongoPool) MakeQueryConditionAnd(q ...*QueryCondition) map[string]interface{} {
+	ret := make(map[string]interface{})
+	for _, v := range q {
+		switch v.Symbol {
+		case "=":
+			ret[v.Name] = v.Condition
+		case "!=":
+			ret[v.Name] = bson.M{"$ne": v.Condition}
+		case ">":
+			ret[v.Name] = bson.M{"$gt": v.Condition}
+		case "<":
+			ret[v.Name] = bson.M{"$lt": v.Condition}
+		case ">=":
+			ret[v.Name] = bson.M{"$gte": v.Condition}
+		case "<=":
+			ret[v.Name] = bson.M{"$lte": v.Condition}
+		case "in": //condition like this  []string{"aaa", "bbb"}
+			ret[v.Name] = bson.M{"$in": v.Condition}
+		}
+	}
+	return ret
+}
+
+func (m *MongoPool) MakeQueryConditionOr(q ...map[string]interface{}) map[string]interface{} {
+	var tm []map[string]interface{}
+	for _, v := range q {
+		tm = append(tm, v)
+	}
+	return bson.M{"$or": tm}
 }

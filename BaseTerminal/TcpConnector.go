@@ -168,7 +168,7 @@ func (c *TcpClient) handleTcpClient() {
 			if err == io.EOF {
 				logger.Info("connection is closed.", c.conn.RemoteAddr().String())
 			} else {
-				logger.Warn("Read Error: %s", err.Error())
+				logger.Warn("Read Error: ", err.Error())
 			}
 			return
 		}
@@ -213,8 +213,8 @@ func (c *TcpClient) SendBin(pData []byte) bool {
 func (c *TcpClient) Close() {
 	//	c.send_buff.PushBack(&BuffEx{nil, nil})
 	//	c.status = STATUS_CLOSEING
-	//	c.reconnect = false
 	//	c.cond.Broadcast()
+	c.reconnect = false
 	c.status = STATUS_CLOSEING
 	go func() {
 		i := 0

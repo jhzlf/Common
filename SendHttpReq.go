@@ -14,7 +14,7 @@ const (
 	Http_req_post
 )
 
-func SendHttpReq(param []byte, funcName string, sendType int, headParam *map[string]string) ([]byte, error) {
+func SendHttpReq(param []byte, funcName string, sendType int, headParam map[string]string) ([]byte, error) {
 	var req *http.Request
 	var err error
 	switch sendType {
@@ -30,7 +30,7 @@ func SendHttpReq(param []byte, funcName string, sendType int, headParam *map[str
 	}
 
 	if headParam != nil {
-		for k, v := range *headParam {
+		for k, v := range headParam {
 			req.Header.Add(k, v)
 		}
 	}

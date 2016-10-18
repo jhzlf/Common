@@ -330,6 +330,17 @@ func init() {
 	stdLogger.SetLogger(FILE_PROTOCOL, string(fileconfbuf))
 }
 
+func SetFileSplit(b bool) {
+	stdLogger.Lock()
+	defer stdLogger.Unlock()
+
+	if output, ok := stdLogger.outputs[FILE_PROTOCOL]; ok {
+		if f, ok := output.(*FileLogWriter); ok {
+			f.SetSplit(b)
+		}
+	}
+}
+
 func StartAsyncSave() {
 	stdLogger.StartAsyncSave()
 }

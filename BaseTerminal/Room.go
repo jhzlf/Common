@@ -10,6 +10,11 @@ type RoomClient interface {
 	Send(send string) bool
 }
 
+type RoomClientEncrypt interface {
+	RoomClient
+	SendEncrypt(send string) bool
+}
+
 type broadcast struct {
 	_map  map[string]map[string]RoomClient
 	_lock sync.Mutex
@@ -115,4 +120,27 @@ func (b *broadcast) Count(room string) int {
 	defer b._lock.Unlock()
 
 	return len(b._map[room])
+}
+
+func (b *broadcast) SendEncrypt(id, room, buf string) error {
+	b._lock.Lock()
+	defer b._lock.Unlock()
+
+	sockets := b._map[room]
+	for k, s := range sockets {
+		if k == id {
+			continue
+		}
+		if se, ok := s.(RoomClientEncrypt); ok {
+			if se.SendEncrypt(buf) == false {
+				delete(sockets, k)
+			}
+		} else {
+			if s.Send(buf) == false {
+				delete(sockets, k)
+			}
+		}
+	}
+	b._map[room] = sockets
+	return nil
 }
