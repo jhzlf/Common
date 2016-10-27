@@ -333,7 +333,7 @@ func (c *SocketIOClient) SendEncrypt(send string) bool {
 }
 
 func (c *SocketIOClient) GetDecryptMsg(msg string) string {
-	logger.Debug("GetDecryptMsg ", c.enKey, "	", msg)
+	// logger.Debug("GetDecryptMsg ", c.enKey, "	", msg)
 	if len(c.enKey) > 0 {
 		b, err := base64.StdEncoding.DecodeString(msg)
 		if err != nil {
@@ -346,7 +346,7 @@ func (c *SocketIOClient) GetDecryptMsg(msg string) string {
 }
 
 func (c *SocketIOClient) GetEncryptMsg(msg string) string {
-	logger.Debug("GetEncryptMsg ", c.enKey, "	", msg)
+	// logger.Debug("GetEncryptMsg ", c.enKey, "	", msg)
 	if len(c.enKey) > 0 {
 		return base64.StdEncoding.EncodeToString(Common.Encrypt(c.enKey, []byte(msg)))
 	}

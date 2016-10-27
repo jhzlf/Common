@@ -138,6 +138,13 @@ func (c *serverConn) NextReader() (MessageType, io.ReadCloser, error) {
 }
 
 func (c *serverConn) NextWriter(t MessageType) (io.WriteCloser, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Print(">>>>>>>>>>>>>panic log:", err)
+			debug.PrintStack()
+		}
+	}()
+
 	switch c.getState() {
 	case stateUpgrading:
 		for i := 0; i < 30; i++ {
@@ -154,7 +161,26 @@ func (c *serverConn) NextWriter(t MessageType) (io.WriteCloser, error) {
 		return nil, io.EOF
 	}
 	c.writerLocker.Lock()
-	ret, err := c.getCurrent().NextWriter(message.MessageType(t), parser.MESSAGE)
+
+	// exit := make(chan interface{})
+	// go func() {
+	// 	t := time.Now().UnixNano()
+	// 	select {
+	// 	case <-time.After(time.Second * 10):
+	// 		logger.Debug(">>>>>>>>>>> NextWriter timeout 10s")
+	// 	case <-exit:
+	// 		logger.Debug(">>>>>>>>>>> NextWriter return ", time.Now().UnixNano()-t)
+	// 	}
+	// }()
+
+	tc := c.getCurrent()
+	if tc == nil {
+		// exit <- "ok"
+		c.writerLocker.Unlock()
+		return nil, errors.New("getCurrent nil")
+	}
+	ret, err := tc.NextWriter(message.MessageType(t), parser.MESSAGE)
+	// exit <- "ok"
 	if err != nil {
 		c.writerLocker.Unlock()
 		return ret, err
@@ -231,19 +257,35 @@ func (c *serverConn) OnPacket(r *parser.PacketDecoder) {
 		c.getCurrent().Close()
 	case parser.PING:
 		c.writerLocker.Lock()
+
+		// exit := make(chan interface{})
+		// go func() {
+		// 	t := time.Now().UnixNano()
+		// 	select {
+		// 	case <-time.After(time.Second * 10):
+		// 		logger.Debug(">>>>>>>>>>> return pong timeout 10s")
+		// 	case <-exit:
+		// 		logger.Debug(">>>>>>>>>>> return pong return ", time.Now().UnixNano()-t)
+		// 	}
+		// }()
+
 		t := c.getCurrent()
-		u := c.getUpgrade()
-		newWriter := t.NextWriter
-		if u != nil {
-			if w, _ := t.NextWriter(message.MessageText, parser.NOOP); w != nil {
+		if t != nil {
+			u := c.getUpgrade()
+			newWriter := t.NextWriter
+			if u != nil {
+				if w, _ := t.NextWriter(message.MessageText, parser.NOOP); w != nil {
+					w.Close()
+				}
+				newWriter = u.NextWriter
+			}
+			if w, _ := newWriter(message.MessageText, parser.PONG); w != nil {
+				io.Copy(w, r)
 				w.Close()
 			}
-			newWriter = u.NextWriter
 		}
-		if w, _ := newWriter(message.MessageText, parser.PONG); w != nil {
-			io.Copy(w, r)
-			w.Close()
-		}
+		// exit <- "ok"
+
 		c.writerLocker.Unlock()
 		fallthrough
 	case parser.PONG:
@@ -286,20 +328,16 @@ func (c *serverConn) OnPacket(r *parser.PacketDecoder) {
 		// log.Println(">>>>>>>>>>>>>>>>>>>>>>server_conn::OnPacket", c)
 		c.writerLocker.Lock()
 		//		u := c.getUpgrade()
-		currentWriter := c.getCurrent().NextWriter
-		// if u != nil {
-		// 	if w, _ := t.NextWriter(message.MessageText, parser.MESSAGE); w != nil {
-		// 		w.Close()
-		// 	}
-		// 	newWriter = u.NextWriter
-		// }
-		w, _ := currentWriter(message.MessageText, parser.MESSAGE)
-		w.Write([]byte("0"))
-		if w != nil {
-			io.Copy(w, r)
-			w.Close()
+		t := c.getCurrent()
+		if t != nil {
+			currentWriter := t.NextWriter
+			w, _ := currentWriter(message.MessageText, parser.MESSAGE)
+			w.Write([]byte("0"))
+			if w != nil {
+				io.Copy(w, r)
+				w.Close()
+			}
 		}
-
 		c.writerLocker.Unlock()
 		//}
 

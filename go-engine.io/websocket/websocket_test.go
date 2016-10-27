@@ -1,15 +1,19 @@
 package websocket
 
 import (
-	"../transport"
 	"encoding/hex"
-	"github.com/gorilla/websocket"
+
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"sync"
 	"testing"
+
+	"../transport"
+	"github.com/gorilla/websocket"
+
+	// "golang.org/x/net/websocket"
 
 	"../message"
 	"../parser"
