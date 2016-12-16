@@ -408,40 +408,40 @@ func NewModel(db *ConnectorPool) *Model {
 	return c
 }
 
-func ParseResultString(slice *map[int]map[string]string, line int, key string) string {
-	if line+1 > len(*slice) {
+func ParseResultString(slice map[int]map[string]string, line int, key string) string {
+	if line+1 > len(slice) {
 		return ""
 	}
-	return (*slice)[line][key]
+	return (slice)[line][key]
 }
 
-func ParseResultInt(slice *map[int]map[string]string, line int, key string) int {
-	if line+1 > len(*slice) {
+func ParseResultInt(slice map[int]map[string]string, line int, key string) int {
+	if line+1 > len(slice) {
 		return 0
 	}
-	i, err := strconv.Atoi((*slice)[line][key])
+	i, err := strconv.Atoi(slice[line][key])
 	if err != nil {
 		return 0
 	}
 	return i
 }
 
-func ParseResultInt64(slice *map[int]map[string]string, line int, key string) int64 {
-	if line+1 > len(*slice) {
+func ParseResultInt64(slice map[int]map[string]string, line int, key string) int64 {
+	if line+1 > len(slice) {
 		return 0
 	}
-	i, err := strconv.ParseInt((*slice)[line][key], 10, 64)
+	i, err := strconv.ParseInt(slice[line][key], 10, 64)
 	if err != nil {
 		return 0
 	}
 	return i
 }
 
-func ParseResultFloat64(slice *map[int]map[string]string, line int, key string) float64 {
-	if line+1 > len(*slice) {
+func ParseResultFloat64(slice map[int]map[string]string, line int, key string) float64 {
+	if line+1 > len(slice) {
 		return 0
 	}
-	i, err := strconv.ParseFloat((*slice)[line][key], 64)
+	i, err := strconv.ParseFloat(slice[line][key], 64)
 	if err != nil {
 		return 0
 	}

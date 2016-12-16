@@ -155,48 +155,70 @@ func (m *MongoPool) EnsureIndex(name interface{}, db, collection string, index M
 	return witchCollection(name, db, collection, query)
 }
 
-func (m *MongoPool) Find(name interface{}, db, collection string, i map[string]interface{}, sort string, o interface{}) error {
+func (m *MongoPool) Find(name interface{}, db, collection string, i map[string]interface{}, sort string, o interface{}, count *int) error {
 	query := func(c *mgo.Collection) error {
-		if sort == string("") {
-			if i == nil {
-				return c.Find(nil).All(o)
-			} else {
-				return c.Find(i).All(o)
-			}
+		var q *mgo.Query
+		if i == nil {
+			q = c.Find(nil)
 		} else {
-			if i == nil {
-				return c.Find(nil).Sort(sort).All(o)
-			} else {
-				return c.Find(i).Sort(sort).All(o)
-			}
+			q = c.Find(i)
+		}
+		ct, err := q.Count()
+		if err != nil {
+			return err
+		}
+		*count = ct
+		if sort == string("") {
+			return q.All(o)
+		} else {
+			return q.Sort(sort).All(o)
 		}
 	}
 	return witchCollection(name, db, collection, query)
 }
 
-func (m *MongoPool) FindLimit(name interface{}, db, collection string, i map[string]interface{}, sort string, limit int, o interface{}) error {
+func (m *MongoPool) FindLimit(name interface{}, db, collection string, i map[string]interface{}, sort string, limit int, o interface{}, count *int) error {
 	query := func(c *mgo.Collection) error {
-		if sort == string("") {
-			if i == nil {
-				return c.Find(nil).Limit(limit).All(o)
-			} else {
-				return c.Find(i).Limit(limit).All(o)
-			}
+		var q *mgo.Query
+		if i == nil {
+			q = c.Find(nil)
 		} else {
-			if i == nil {
-				return c.Find(nil).Sort(sort).Limit(limit).All(o)
-			} else {
-				return c.Find(i).Sort(sort).Limit(limit).All(o)
-			}
+			q = c.Find(i)
+		}
+		ct, err := q.Count()
+		if err != nil {
+			return err
+		}
+		*count = ct
+		if sort == string("") {
+			return q.Limit(limit).All(o)
+		} else {
+			return q.Sort(sort).Limit(limit).All(o)
 		}
 	}
 	return witchCollection(name, db, collection, query)
+}
 
+func (m *MongoPool) Update(name interface{}, db, collection string, s map[string]interface{}, u map[string]interface{}, mod string) error {
+	switch mod {
+	case "set":
+		u = bson.M{"$set": u}
+	default:
+		logger.Warn("update mod error ", mod)
+		return errors.New("update mod error")
+	}
+	query := func(c *mgo.Collection) error {
+		return c.Update(s, u)
+	}
+	return witchCollection(name, db, collection, query)
 }
 
 func (m *MongoPool) MakeQueryConditionAnd(q ...*QueryCondition) map[string]interface{} {
 	ret := make(map[string]interface{})
 	for _, v := range q {
+		if v == nil {
+			continue
+		}
 		switch v.Symbol {
 		case "=":
 			ret[v.Name] = v.Condition
@@ -220,6 +242,9 @@ func (m *MongoPool) MakeQueryConditionAnd(q ...*QueryCondition) map[string]inter
 func (m *MongoPool) MakeQueryConditionOr(q ...map[string]interface{}) map[string]interface{} {
 	var tm []map[string]interface{}
 	for _, v := range q {
+		if v == nil {
+			continue
+		}
 		tm = append(tm, v)
 	}
 	return bson.M{"$or": tm}

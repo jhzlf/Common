@@ -1,7 +1,7 @@
 package redisz
 
 import (
-	"github.com/futurez/litego/logger"
+	"Common/logger"
 
 	"github.com/garyburd/redigo/redis"
 )

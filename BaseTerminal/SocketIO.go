@@ -155,6 +155,10 @@ func (c *SocketIOClient) Check(room string) bool {
 	return c.server.room.Check(room, c.Sid())
 }
 
+func (c *SocketIOClient) GetRooms() map[string]int64 {
+	return c.server.room.GetRooms(c.Sid())
+}
+
 func (c *SocketIOClient) BroadcastTo(room string, buf string) error {
 	//	return c.ss.BroadcastTo(room, "msg", args...)
 	return c.server.room.Send(c.Sid(), room, buf)
@@ -351,4 +355,36 @@ func (c *SocketIOClient) GetEncryptMsg(msg string) string {
 		return base64.StdEncoding.EncodeToString(Common.Encrypt(c.enKey, []byte(msg)))
 	}
 	return msg
+}
+
+type funAckType func(string)
+
+func (c *SocketIOClient) SendACK(send string, f funAckType) bool {
+	if len(send) == 0 || f == nil {
+		return false
+	}
+	if c.status == STATUS_CONNECTED {
+		atomic.AddInt32(&c.sendNum, 1)
+		go func() {
+			err := c.ss.Emit("msg", send, f)
+			atomic.AddInt32(&c.sendNum, -1)
+			if err != nil {
+				logger.Warn("write buffer error.", c.ss, "	", err)
+				c.ss.Close()
+			}
+		}()
+		return true
+	} else {
+		return false
+	}
+}
+
+func (c *SocketIOClient) SendEncryptACK(send string, f funAckType) bool {
+	if len(send) == 0 || f == nil {
+		return false
+	}
+	if len(c.enKey) > 0 {
+		return c.SendACK(base64.StdEncoding.EncodeToString(Common.Encrypt(c.enKey, []byte(send))), f)
+	}
+	return c.SendACK(send, f)
 }

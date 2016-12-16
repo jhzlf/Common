@@ -18,9 +18,10 @@ import (
 )
 
 var (
-	http_manage  *HttpServer.HttpServer
-	buildtime    = ""
-	buildversion = ""
+	http_manage     *HttpServer.HttpServer
+	http_manage_tls *HttpServer.HttpServer
+	buildtime       = ""
+	buildversion    = ""
 )
 
 func Init(port int) {
@@ -46,15 +47,54 @@ func Create(port int, build, version string) {
 	buildversion = version
 	http_manage = &HttpServer.HttpServer{Name: "manage", Handler: http.NewServeMux()}
 
-	logger.Info("manage listen at localhost:", manage_port)
+	logger.Info("manage listen at http localhost:", manage_port)
 
 	http_manage.Handler.HandleFunc("/SetLogLevel", setLogLevel)
 	http_manage.Handler.HandleFunc("/Build", getBuild)
 	http_manage.ListenAndServe(manage_port, 360)
 }
 
+func CreateTLS(port int, build, version string, certFile, keyFile string) {
+	manage_port := port
+	if manage_port == 0 {
+		manage_port = 24438
+	}
+	buildtime = build
+	buildversion = version
+	http_manage_tls = &HttpServer.HttpServer{Name: "manage", Handler: http.NewServeMux()}
+
+	logger.Info("manage listen at https localhost:", manage_port)
+
+	http_manage_tls.Handler.HandleFunc("/SetLogLevel", setLogLevel)
+	http_manage_tls.Handler.HandleFunc("/Build", getBuild)
+	http_manage_tls.ListenAndServeTLS(manage_port, 360, certFile, keyFile)
+}
+
+func CreateAll(port int, ports int, build, version string, certFile, keyFile string) {
+	buildtime = build
+	buildversion = version
+	http_manage = &HttpServer.HttpServer{Name: "manage", Handler: http.NewServeMux()}
+	http_manage_tls = &HttpServer.HttpServer{Name: "manage", Handler: http.NewServeMux()}
+
+	logger.Info("manage listen at http localhost:", port)
+	logger.Info("manage listen at https localhost:", ports)
+
+	http_manage.Handler.HandleFunc("/SetLogLevel", setLogLevel)
+	http_manage.Handler.HandleFunc("/Build", getBuild)
+	http_manage.ListenAndServe(port, 360)
+
+	http_manage_tls.Handler.HandleFunc("/SetLogLevel", setLogLevel)
+	http_manage_tls.Handler.HandleFunc("/Build", getBuild)
+	http_manage_tls.ListenAndServeTLS(ports, 360, certFile, keyFile)
+}
+
 func AddManagerFunc(name string, f func(w http.ResponseWriter, r *http.Request)) {
-	http_manage.Handler.HandleFunc(name, f)
+	if http_manage != nil {
+		http_manage.Handler.HandleFunc(name, f)
+	}
+	if http_manage_tls != nil {
+		http_manage_tls.Handler.HandleFunc(name, f)
+	}
 }
 
 func setLogLevel(w http.ResponseWriter, r *http.Request) {

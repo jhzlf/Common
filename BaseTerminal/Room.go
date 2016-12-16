@@ -1,5 +1,9 @@
 package BaseTerminal
 
+import (
+	"time"
+)
+
 import
 //	"Common/logger"
 //	"runtime/debug"
@@ -16,14 +20,16 @@ type RoomClientEncrypt interface {
 }
 
 type broadcast struct {
-	_map  map[string]map[string]RoomClient
-	_lock sync.Mutex
+	_map     map[string]map[string]RoomClient
+	_mapUser map[string]map[string]int64
+	_lock    sync.Mutex
 }
 
 func newBroadcast() *broadcast {
 	//return make(broadcast)
 	return &broadcast{
-		_map: make(map[string]map[string]RoomClient),
+		_map:     make(map[string]map[string]RoomClient),
+		_mapUser: make(map[string]map[string]int64),
 	}
 }
 
@@ -35,9 +41,15 @@ func (b *broadcast) Join(room string, id string, socket RoomClient) error {
 	if !ok || sockets == nil {
 		sockets = make(map[string]RoomClient)
 	}
-
 	sockets[id] = socket
 	b._map[room] = sockets
+
+	rooms, ok := b._mapUser[id]
+	if !ok || rooms == nil {
+		rooms = make(map[string]int64)
+	}
+	rooms[room] = time.Now().Unix()
+	b._mapUser[id] = rooms
 
 	return nil
 }
@@ -46,16 +58,26 @@ func (b *broadcast) Leave(room string, id string) error {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 
-	sockets, ok := b._map[room]
-	if !ok {
-		return nil
+	sockets, _ := b._map[room]
+	if sockets != nil {
+		delete(sockets, id)
+		if len(sockets) == 0 {
+			delete(b._map, room)
+		} else {
+			b._map[room] = sockets
+		}
 	}
-	delete(sockets, id)
-	if len(sockets) == 0 {
-		delete(b._map, room)
-		return nil
+
+	rooms, _ := b._mapUser[id]
+	if rooms != nil {
+		delete(rooms, room)
+		if len(rooms) == 0 {
+			delete(b._mapUser, id)
+		} else {
+			b._mapUser[id] = rooms
+		}
 	}
-	b._map[room] = sockets
+
 	return nil
 }
 
@@ -76,6 +98,15 @@ func (b *broadcast) Check(room string, id string) bool {
 func (b *broadcast) Close(room string) {
 	b._lock.Lock()
 	defer b._lock.Unlock()
+	if sockets, ok := b._map[room]; ok {
+		for k, _ := range sockets {
+			if rooms, ok := b._mapUser[k]; ok {
+				delete(rooms, room)
+				b._mapUser[k] = rooms
+			}
+		}
+	}
+
 	delete(b._map, room)
 }
 
@@ -83,14 +114,28 @@ func (b *broadcast) LeaveAll(id string) error {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 
-	for k, sockets := range b._map {
-		delete(sockets, id)
-		if len(sockets) == 0 {
-			delete(b._map, k)
-			continue
+	// for k, sockets := range b._map {
+	// 	delete(sockets, id)
+	// 	if len(sockets) == 0 {
+	// 		delete(b._map, k)
+	// 		continue
+	// 	}
+	// 	b._map[k] = sockets
+	// }
+	if rooms, ok := b._mapUser[id]; ok {
+		for r := range rooms {
+			if sockets, ok := b._map[r]; ok {
+				delete(sockets, id)
+				if len(sockets) == 0 {
+					delete(b._map, r)
+				} else {
+					b._map[r] = sockets
+				}
+			}
 		}
-		b._map[k] = sockets
+		delete(b._mapUser, id)
 	}
+
 	return nil
 }
 
@@ -120,6 +165,15 @@ func (b *broadcast) Count(room string) int {
 	defer b._lock.Unlock()
 
 	return len(b._map[room])
+}
+
+func (b *broadcast) GetRooms(id string) map[string]int64 {
+	b._lock.Lock()
+	defer b._lock.Unlock()
+	if rooms, ok := b._mapUser[id]; ok {
+		return rooms
+	}
+	return nil
 }
 
 func (b *broadcast) SendEncrypt(id, room, buf string) error {
