@@ -265,3 +265,10 @@ func (c *TcpClient) LeaveAll() {
 	}
 	c.room.LeaveAll(strconv.FormatUint(c.linkID, 10))
 }
+
+func (c *TcpClient) Check(room string) bool {
+	if c.room == nil {
+		return false
+	}
+	return c.room.Check(room, strconv.FormatUint(c.linkID, 10))
+}
