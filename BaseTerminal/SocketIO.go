@@ -38,7 +38,7 @@ type SocketIOClient struct {
 
 type SocketIOServer struct {
 	*socketio.Server
-	room *broadcast
+	room *Broadcast
 }
 
 func (s *SocketIOServer) SocketIOBroadcastTo(room, buf string) {
@@ -237,7 +237,7 @@ func InitSocketIOServer(listen []SocketIOListen, conn_max int, base SocketIOBase
 	}
 	server.SetMaxConnection(conn_max)
 
-	s := &SocketIOServer{server, newBroadcast()}
+	s := &SocketIOServer{server, NewBroadcast()}
 
 	server.On("connection", func(so socketio.Socket) {
 		//		logger.Debug(pHttpServer.Server.Addr, " accept new connect from ", so.Conn().Request().RemoteAddr)Host

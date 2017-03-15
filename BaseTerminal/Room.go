@@ -19,21 +19,21 @@ type RoomClientEncrypt interface {
 	SendEncrypt(send string) bool
 }
 
-type broadcast struct {
+type Broadcast struct {
 	_map     map[string]map[string]RoomClient
 	_mapUser map[string]map[string]int64
 	_lock    sync.Mutex
 }
 
-func newBroadcast() *broadcast {
-	//return make(broadcast)
-	return &broadcast{
+func NewBroadcast() *Broadcast {
+	//return make(Broadcast)
+	return &Broadcast{
 		_map:     make(map[string]map[string]RoomClient),
 		_mapUser: make(map[string]map[string]int64),
 	}
 }
 
-func (b *broadcast) Join(room string, id string, socket RoomClient) error {
+func (b *Broadcast) Join(room string, id string, socket RoomClient) error {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 
@@ -54,7 +54,7 @@ func (b *broadcast) Join(room string, id string, socket RoomClient) error {
 	return nil
 }
 
-func (b *broadcast) Leave(room string, id string) error {
+func (b *Broadcast) Leave(room string, id string) error {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 
@@ -81,7 +81,7 @@ func (b *broadcast) Leave(room string, id string) error {
 	return nil
 }
 
-func (b *broadcast) Check(room string, id string) bool {
+func (b *Broadcast) Check(room string, id string) bool {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 
@@ -95,7 +95,7 @@ func (b *broadcast) Check(room string, id string) bool {
 	return false
 }
 
-func (b *broadcast) Close(room string) {
+func (b *Broadcast) Close(room string) {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 	if sockets, ok := b._map[room]; ok {
@@ -110,7 +110,7 @@ func (b *broadcast) Close(room string) {
 	delete(b._map, room)
 }
 
-func (b *broadcast) LeaveAll(id string) error {
+func (b *Broadcast) LeaveAll(id string) error {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 
@@ -139,7 +139,7 @@ func (b *broadcast) LeaveAll(id string) error {
 	return nil
 }
 
-func (b *broadcast) Send(id, room, buf string) error {
+func (b *Broadcast) Send(id, room, buf string) error {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 
@@ -160,14 +160,29 @@ func (b *broadcast) Send(id, room, buf string) error {
 	return nil
 }
 
-func (b *broadcast) Count(room string) int {
+func (b *Broadcast) Count(room string) int {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 
 	return len(b._map[room])
 }
 
-func (b *broadcast) GetRooms(id string) map[string]int64 {
+//donot change mem by this
+func (b *Broadcast) GetRoomMem(id, room string) []interface{} {
+	var ret []interface{}
+	b._lock.Lock()
+	defer b._lock.Unlock()
+	sockets := b._map[room]
+	for k, s := range sockets {
+		if k == id {
+			continue
+		}
+		ret = append(ret, s)
+	}
+	return ret
+}
+
+func (b *Broadcast) GetRooms(id string) map[string]int64 {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 	if rooms, ok := b._mapUser[id]; ok {
@@ -176,7 +191,7 @@ func (b *broadcast) GetRooms(id string) map[string]int64 {
 	return nil
 }
 
-func (b *broadcast) SendEncrypt(id, room, buf string) error {
+func (b *Broadcast) SendEncrypt(id, room, buf string) error {
 	b._lock.Lock()
 	defer b._lock.Unlock()
 

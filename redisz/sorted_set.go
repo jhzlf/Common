@@ -18,6 +18,18 @@ func (r *RedisPool) Zadd(key string, score int, member string) int {
 	return val
 }
 
+func (r *RedisPool) Zadd64(key string, score int64, member string) int {
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	val, err := redis.Int(conn.Do("ZADD", key, score, member))
+	if err != nil {
+		logger.Warn("ZADD ", r.server, " ", r.name, " ", err.Error())
+		return -1
+	}
+	return val
+}
+
 func (r *RedisPool) Zadds(key string, scoremap map[int]string) int {
 	conn := r.pool.Get()
 	defer conn.Close()
@@ -104,6 +116,24 @@ func (r *RedisPool) ZrangebylexLimit(key string, offset, count int64) []string {
 	defer conn.Close()
 
 	val, err := redis.Strings(conn.Do("ZRANGEBYSCORE", key, "-inf", "+inf", "limit", offset, count))
+	if err != nil {
+		logger.Warn("ZRANGEBYSCORE ", r.server, " ", r.name, " ", err.Error())
+		return nil
+	}
+	return val
+}
+
+func (r *RedisPool) ZrangebyscorelexLimit(key string, min, max int64, offset, count int64) []string {
+	conn := r.pool.Get()
+	defer conn.Close()
+	var val []string
+	var err error
+	if count > 0 {
+		val, err = redis.Strings(conn.Do("ZRANGEBYSCORE", key, min, max, "limit", offset, count))
+	} else {
+		val, err = redis.Strings(conn.Do("ZRANGEBYSCORE", key, min, max))
+	}
+
 	if err != nil {
 		logger.Warn("ZRANGEBYSCORE ", r.server, " ", r.name, " ", err.Error())
 		return nil

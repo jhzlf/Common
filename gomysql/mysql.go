@@ -94,11 +94,12 @@ func (m *Model) FindAll() map[int]map[string]string {
 	}
 
 	query := fmt.Sprintf("Select %v from %v %v %v %v %v", m.columnstr, m.tablename, m.join, m.where, m.orderby, m.limit)
+
 	rows, err := m.db.Query(query)
 	if err != nil {
 		defer func() {
 			if err := recover(); err != nil {
-				fmt.Printf("SQL syntax errors ", query)
+				fmt.Printf("SQL syntax errors ", err, " ", query)
 			}
 		}()
 		err = errors.New("select sql failure")
@@ -410,7 +411,7 @@ func NewModel(db *ConnectorPool) *Model {
 
 func ParseResultString(slice map[int]map[string]string, line int, key string) string {
 	if line+1 > len(slice) {
-		return ""
+		return string("")
 	}
 	return (slice)[line][key]
 }

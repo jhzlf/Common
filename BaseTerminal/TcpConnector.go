@@ -33,7 +33,7 @@ type TcpClient struct {
 	reconnect bool
 	base      BaseTerminal
 	conn      *net.TCPConn
-	room      *broadcast
+	room      *Broadcast
 }
 
 func NewTcpClient(b bool) *TcpClient {
@@ -250,6 +250,10 @@ func (c *TcpClient) BroadcastTo(room string, buf string) error {
 		return errors.New("client no room")
 	}
 	return c.room.Send(strconv.FormatUint(c.linkID, 10), room, buf)
+}
+
+func (c *TcpClient) GetOtherMem(room string) []interface{} {
+	return c.room.GetRoomMem(strconv.FormatUint(c.linkID, 10), room)
 }
 
 func (c *TcpClient) RoomMemCount(room string) int {

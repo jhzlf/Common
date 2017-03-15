@@ -26,7 +26,7 @@ func ListenTcp(port int, base BaseTerminal) error {
 		}()
 
 		logger.Info("listen address: ", listener.Addr().String())
-		room := newBroadcast()
+		room := NewBroadcast()
 		for {
 			conn, err := listener.AcceptTCP()
 			if err != nil {

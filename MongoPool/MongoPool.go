@@ -105,7 +105,7 @@ func (m *MongoPool) AddOne(name interface{}, db, collection string, p interface{
 	return witchCollection(name, db, collection, query)
 }
 
-func (m *MongoPool) FindOne(name interface{}, db, collection string, i *map[string]interface{}, sort string, o interface{}) error {
+func (m *MongoPool) FindOne(name interface{}, db, collection string, i map[string]interface{}, sort string, o interface{}) error {
 	query := func(c *mgo.Collection) error {
 		if sort == string("") {
 			if i == nil {

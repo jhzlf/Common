@@ -43,7 +43,7 @@ func SendSMS(phone, info string) error {
 	v.Set("msg", info)
 	req := v.Encode()
 
-	resp, err := SendHttpReq([]byte(req), "http://sms.10690221.com:9011/hy/", Http_req_get, nil)
+	resp, err := SendHttpReq([]byte(req), "http://sms.10690221.com:9011/hy/", Http_req_get, nil, GetHttpClient(30))
 	if err != nil {
 		fmt.Printf("SendSMS : ", err.Error())
 		return err
