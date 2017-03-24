@@ -363,6 +363,20 @@ func (m *Model) FullJoin(table, condition string) *Model {
 	return m
 }
 
+func (m *Model) Exec(query string, args ...interface{}) error {
+	db := m.db
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	res, err := stmt.Exec(args...)
+	if err != nil {
+		return err
+	}
+	_, err = res.RowsAffected()
+	return err
+}
+
 func (m *Model) Clean() *Model {
 	m.tablename = ""
 	m.param = m.param[0:0]
