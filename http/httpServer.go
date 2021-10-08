@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/jhzlf/Common/logs"
 )
 
 type HttpServer struct {
@@ -49,4 +51,31 @@ func (this *HttpServer) ListenAndServeTLS(port int, timeout int, certFile, keyFi
 		}
 	}()
 	//	<-endRunning
+}
+
+func CrossDomain(w http.ResponseWriter, r *http.Request) bool {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		// w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json;charset=UTF-8")
+		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Token,Accept,X-Requested-With")
+	}
+
+	if r.Method == "OPTIONS" {
+		return false
+	}
+	return true
+}
+
+func BaseParseReq(w http.ResponseWriter, r *http.Request) bool {
+	if !CrossDomain(w, r) {
+		return false
+	}
+	err := r.ParseForm()
+	if err != nil {
+		logs.Errorf("parse param error ", err)
+		return false
+	}
+	return true
 }
