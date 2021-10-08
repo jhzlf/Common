@@ -1,4 +1,4 @@
-package HttpServer
+package http
 
 import (
 	"fmt"
