@@ -1,1 +1,1 @@
-module logs
+module github.com/jhzlf/Common/logs
